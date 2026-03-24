@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Minimal AI Development Lifecycle That Works</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+
+        /* === CSS CUSTOM PROPERTIES (Swiss Modern + Violet) === */
+        :root {
+            --bg: #fafafa;
+            --bg-dark: #0d0d0d;
+            --ink: #0a0a0a;
+            --ink-mid: #444444;
+            --ink-light: #888888;
+            --accent: #6d28d9;
+            --accent-mid: #8b5cf6;
+            --accent-soft: #ede9fe;
+            --white: #ffffff;
+            --grid-line: rgba(0, 0, 0, 0.05);
+
+            --font-display: 'Archivo', sans-serif;
+            --font-body: 'Nunito', sans-serif;
+            --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+
+            --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+            /* Viewport-safe typography — from viewport-base.css */
+            --title-size: clamp(1.5rem, 5vw, 4rem);
+            --h2-size: clamp(1.25rem, 3.5vw, 2.5rem);
+            --h3-size: clamp(1rem, 2.5vw, 1.75rem);
+            --body-size: clamp(0.75rem, 1.5vw, 1.05rem);
+            --small-size: clamp(0.6rem, 1vw, 0.8rem);
+            --slide-padding: clamp(1rem, 4vw, 3.5rem);
+            --content-gap: clamp(0.4rem, 1.5vw, 1.25rem);
+        }
+
+        /* === RESET === */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--font-body); background: var(--bg); color: var(--ink); }
+
+        /* === VIEWPORT BASE (viewport-base.css contents) === */
+        html, body { height: 100%; overflow-x: hidden; }
+        html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: var(--bg);
+        }
+
+        .slide-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-height: 100%;
+            overflow: hidden;
+            padding: var(--slide-padding);
+        }
+
+        .card, .container, .content-box {
+            max-width: min(90vw, 1000px);
+            max-height: min(80vh, 700px);
+        }
+
+        img, .image-container {
+            max-width: 100%;
+            max-height: min(50vh, 400px);
+            object-fit: contain;
+        }
+
+        @media (max-height: 700px) {
+            :root {
+                --slide-padding: clamp(0.75rem, 3vw, 2rem);
+                --content-gap: clamp(0.3rem, 1.2vw, 0.8rem);
+                --title-size: clamp(1.25rem, 4.5vw, 2.5rem);
+                --h2-size: clamp(1rem, 3vw, 1.75rem);
+                --body-size: clamp(0.7rem, 1.3vw, 0.95rem);
+            }
+        }
+        @media (max-height: 600px) {
+            :root {
+                --slide-padding: clamp(0.5rem, 2.5vw, 1.5rem);
+                --content-gap: clamp(0.25rem, 0.8vw, 0.6rem);
+                --title-size: clamp(1.1rem, 4vw, 2rem);
+                --body-size: clamp(0.65rem, 1.1vw, 0.85rem);
+            }
+            .nav-dots, .keyboard-hint, .bg-num { display: none; }
+        }
+        @media (max-height: 500px) {
+            :root {
+                --slide-padding: clamp(0.4rem, 2vw, 1rem);
+                --title-size: clamp(1rem, 3.5vw, 1.5rem);
+                --h2-size: clamp(0.9rem, 2.5vw, 1.25rem);
+                --body-size: clamp(0.6rem, 1vw, 0.8rem);
+            }
+        }
+        @media (max-width: 600px) {
+            :root { --title-size: clamp(1.25rem, 7vw, 2.5rem); }
+            .three-col { grid-template-columns: 1fr !important; }
+            .harness-grid { grid-template-columns: 1fr !important; }
+            .stage-row { flex-direction: column !important; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.2s !important;
+            }
+            html { scroll-behavior: auto; }
+        }
+
+        /* === SWISS MODERN GRID OVERLAY === */
+        .slide::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: clamp(32px, 5vw, 56px) clamp(32px, 5vw, 56px);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .slide > * { position: relative; z-index: 1; }
+
+        /* === BACKGROUND SLIDE NUMBER (Swiss Modern decorative) === */
+        .bg-num {
+            position: absolute;
+            right: var(--slide-padding);
+            bottom: calc(var(--slide-padding) * 0.5);
+            font-family: var(--font-display);
+            font-weight: 900;
+            font-size: clamp(5rem, 18vw, 14rem);
+            color: rgba(0, 0, 0, 0.04);
+            line-height: 1;
+            pointer-events: none;
+            z-index: 0;
+            user-select: none;
+            letter-spacing: -0.04em;
+        }
+
+        /* === SLIDE META BAR === */
+        .slide-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: clamp(0.6rem, 1.5vw, 1rem) var(--slide-padding);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+            flex-shrink: 0;
+        }
+        .slide-num {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: var(--small-size);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+        .slide-label {
+            font-family: var(--font-body);
+            font-size: var(--small-size);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--ink-light);
+        }
+
+        /* === SLIDE BODY === */
+        .slide-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: clamp(0.75rem, 2vw, 1.75rem) var(--slide-padding) var(--slide-padding);
+            gap: var(--content-gap);
+            overflow: hidden;
+        }
+
+        /* === TYPOGRAPHY === */
+        h1 {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: var(--title-size);
+            line-height: 1.05;
+            letter-spacing: -0.02em;
+            color: var(--ink);
+        }
+        h2 {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: var(--h2-size);
+            line-height: 1.1;
+            letter-spacing: -0.01em;
+            color: var(--ink);
+        }
+        h3 {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: var(--h3-size);
+            line-height: 1.2;
+        }
+        p, li {
+            font-family: var(--font-body);
+            font-size: var(--body-size);
+            line-height: 1.55;
+            color: var(--ink-mid);
+        }
+
+        /* === SECTION HEADING WITH VIOLET BAR === */
+        .section-head {
+            display: flex;
+            align-items: stretch;
+            gap: clamp(0.5rem, 1.2vw, 0.9rem);
+            flex-shrink: 0;
+        }
+        .section-bar {
+            width: 5px;
+            background: var(--accent);
+            flex-shrink: 0;
+            border-radius: 1px;
+        }
+
+        /* === REVEAL ANIMATIONS (Swiss: slide from left) === */
+        .reveal {
+            opacity: 0;
+            transform: translateX(-18px);
+            transition: opacity 0.45s var(--ease-expo), transform 0.45s var(--ease-expo);
+        }
+        .slide.visible .reveal { opacity: 1; transform: translateX(0); }
+        .reveal:nth-child(1) { transition-delay: 0.04s; }
+        .reveal:nth-child(2) { transition-delay: 0.12s; }
+        .reveal:nth-child(3) { transition-delay: 0.20s; }
+        .reveal:nth-child(4) { transition-delay: 0.28s; }
+        .reveal:nth-child(5) { transition-delay: 0.36s; }
+        .reveal:nth-child(6) { transition-delay: 0.44s; }
+
+        /* === QUOTE BLOCK === */
+        .quote-block {
+            border-left: 4px solid var(--accent);
+            padding: clamp(0.4rem, 1vw, 0.8rem) clamp(0.6rem, 1.5vw, 1.2rem);
+            background: var(--accent-soft);
+            flex-shrink: 0;
+        }
+        .quote-block p {
+            font-family: var(--font-display);
+            font-weight: 500;
+            font-size: clamp(0.8rem, 1.8vw, 1.15rem);
+            font-style: italic;
+            color: var(--ink);
+            line-height: 1.45;
+        }
+
+        /* === BULLET LIST === */
+        .bullets {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.3rem, 0.8vh, 0.65rem);
+        }
+        .bullets li {
+            display: flex;
+            align-items: flex-start;
+            gap: clamp(0.4rem, 0.8vw, 0.65rem);
+            font-size: var(--body-size);
+            line-height: 1.45;
+            color: var(--ink-mid);
+        }
+        .bullets li::before {
+            content: '—';
+            color: var(--accent);
+            font-family: var(--font-display);
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+        .bullets strong { color: var(--ink); font-weight: 700; }
+
+        /* === CODE BLOCK === */
+        .code-block {
+            background: #111;
+            padding: clamp(0.5rem, 1.2vw, 0.9rem) clamp(0.75rem, 1.8vw, 1.2rem);
+            font-family: var(--font-mono);
+            font-size: clamp(0.65rem, 1.15vw, 0.88rem);
+            color: #cbd5e1;
+            border-left: 3px solid var(--accent);
+            line-height: 1.65;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        .code-block .hl { color: #a78bfa; font-weight: 600; }
+        .code-block .op { color: #64748b; }
+
+        /* === TABLE === */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: clamp(0.65rem, 1.2vw, 0.88rem);
+            flex-shrink: 0;
+        }
+        .data-table thead tr { background: var(--ink); }
+        .data-table thead th {
+            font-family: var(--font-display);
+            font-weight: 700;
+            text-align: left;
+            padding: clamp(0.35rem, 0.8vw, 0.6rem) clamp(0.5rem, 1.2vw, 0.9rem);
+            color: white;
+            letter-spacing: 0.04em;
+        }
+        .data-table tbody tr:nth-child(even) { background: rgba(0,0,0,0.025); }
+        .data-table tbody td {
+            padding: clamp(0.3rem, 0.7vw, 0.55rem) clamp(0.5rem, 1.2vw, 0.9rem);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            vertical-align: top;
+            color: var(--ink-mid);
+        }
+        .data-table tbody td strong { color: var(--accent); font-weight: 700; }
+
+        /* === FLOW STEPS === */
+        .flow-steps {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.2rem, 0.6vw, 0.5rem);
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+        .flow-step {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: clamp(0.6rem, 1.1vw, 0.82rem);
+            background: var(--accent);
+            color: white;
+            padding: clamp(0.2rem, 0.4vw, 0.3rem) clamp(0.4rem, 0.8vw, 0.65rem);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .flow-arrow { color: var(--ink-light); font-size: clamp(0.7rem, 1.2vw, 0.9rem); flex-shrink: 0; }
+        .flow-note { font-size: var(--small-size); color: var(--ink-light); font-style: italic; }
+
+        /* === STAGE CARDS (Slide 4) === */
+        .stage-row {
+            display: flex;
+            gap: clamp(0.5rem, 1.2vw, 0.9rem);
+            align-items: stretch;
+            flex-shrink: 0;
+        }
+        .stage-item {
+            flex: 1;
+            padding: clamp(0.5rem, 1.2vw, 1rem);
+            background: var(--accent-soft);
+            border-top: 3px solid var(--accent);
+        }
+        .stage-item.active { background: var(--accent); }
+        .stage-item .stage-label {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: var(--small-size);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            margin-bottom: clamp(0.15rem, 0.4vw, 0.3rem);
+        }
+        .stage-item.active .stage-label { color: rgba(255,255,255,0.6); }
+        .stage-item .stage-name {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: clamp(0.8rem, 1.6vw, 1.1rem);
+            color: var(--ink);
+            margin-bottom: clamp(0.1rem, 0.3vw, 0.25rem);
+            line-height: 1.2;
+        }
+        .stage-item.active .stage-name { color: white; }
+        .stage-item .stage-desc { font-size: clamp(0.65rem, 1.1vw, 0.82rem); color: var(--ink-mid); line-height: 1.4; }
+        .stage-item.active .stage-desc { color: rgba(255,255,255,0.75); }
+
+        /* === HARNESS 2×2 GRID (Slide 5) === */
+        .harness-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(0.4rem, 1vw, 0.8rem);
+            flex-shrink: 0;
+        }
+        .harness-card {
+            border: 1px solid rgba(0,0,0,0.08);
+            padding: clamp(0.5rem, 1.2vw, 0.9rem);
+            background: white;
+        }
+        .harness-card-title {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: clamp(0.72rem, 1.3vw, 0.95rem);
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: clamp(0.2rem, 0.4vw, 0.35rem);
+        }
+        .harness-card p { font-size: clamp(0.65rem, 1.1vw, 0.82rem); line-height: 1.45; }
+
+        /* === 3-COLUMN LAYOUT (Slide 9) === */
+        .three-col {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(0.6rem, 1.5vw, 1.2rem);
+            flex-shrink: 0;
+        }
+        .col-card { border-top: 3px solid var(--accent); padding-top: clamp(0.4rem, 0.8vw, 0.65rem); }
+        .col-card h3 {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: clamp(0.8rem, 1.6vw, 1.1rem);
+            color: var(--ink);
+            margin-bottom: clamp(0.2rem, 0.5vw, 0.4rem);
+        }
+        .col-card p { font-size: clamp(0.65rem, 1.1vw, 0.82rem); line-height: 1.45; }
+        .col-card ul { list-style: none; margin-top: clamp(0.15rem, 0.35vw, 0.3rem); }
+        .col-card ul li {
+            font-size: clamp(0.63rem, 1.05vw, 0.8rem);
+            color: var(--ink-mid);
+            padding: clamp(0.1rem, 0.25vw, 0.2rem) 0;
+        }
+        .col-card ul li::before { content: '✓ '; color: var(--accent); font-weight: 700; }
+
+        /* === NUMBERED STEPS (Slide 8) === */
+        .steps-list {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.35rem, 0.8vh, 0.65rem);
+            flex-shrink: 0;
+        }
+        .step-item { display: flex; align-items: flex-start; gap: clamp(0.5rem, 1.2vw, 0.9rem); }
+        .step-num {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: clamp(1rem, 2.5vw, 1.75rem);
+            color: var(--accent);
+            line-height: 1;
+            flex-shrink: 0;
+            min-width: clamp(1.25rem, 2.5vw, 2rem);
+        }
+        .step-text { font-size: var(--body-size); color: var(--ink-mid); line-height: 1.5; }
+        .step-text strong { color: var(--ink); }
+
+        /* === BIG CALLOUT (Slide 10) === */
+        .big-callout {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: clamp(1.1rem, 3.5vw, 2.25rem);
+            line-height: 1.15;
+            color: var(--ink);
+        }
+        .big-callout span { color: var(--accent); }
+
+        /* === DARK SLIDES (title + closing) === */
+        .dark-slide { background: var(--bg-dark); }
+        .dark-slide::before {
+            background-image:
+                linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+            background-size: clamp(32px, 5vw, 56px) clamp(32px, 5vw, 56px);
+        }
+        .dark-slide .slide-meta { border-bottom-color: rgba(255,255,255,0.07); }
+        .dark-slide .slide-num { color: var(--accent-mid); }
+        .dark-slide .slide-label { color: rgba(255,255,255,0.3); }
+        .dark-slide h2 { color: white; }
+        .dark-slide .bg-num { color: rgba(255,255,255,0.04); }
+
+        /* Title slide specifics */
+        .title-eyebrow {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: clamp(0.65rem, 1.2vw, 0.88rem);
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: var(--accent-mid);
+            margin-bottom: clamp(0.6rem, 1.5vw, 1.2rem);
+        }
+        .title-slide h1 {
+            color: white;
+            font-size: clamp(2rem, 6vw, 4.5rem);
+            max-width: 16ch;
+        }
+        .title-slide h1 em { color: var(--accent-mid); font-style: normal; }
+        .title-author {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.6rem, 1.5vw, 1rem);
+            margin-top: clamp(1rem, 3vw, 2rem);
+        }
+        .title-author-line { width: clamp(28px, 4vw, 48px); height: 2px; background: var(--accent); flex-shrink: 0; }
+        .title-author-name {
+            font-family: var(--font-body);
+            font-size: var(--body-size);
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        /* Geometric corner shapes on title slide */
+        .geo-circle {
+            position: absolute;
+            right: 0; bottom: 0;
+            width: clamp(140px, 32vw, 320px);
+            height: clamp(140px, 32vw, 320px);
+            border: 1px solid rgba(109, 40, 217, 0.25);
+            border-radius: 50%;
+            transform: translate(35%, 35%);
+            pointer-events: none;
+        }
+        .geo-rect {
+            position: absolute;
+            right: clamp(48px, 9vw, 110px);
+            bottom: clamp(48px, 9vw, 110px);
+            width: clamp(50px, 12vw, 120px);
+            height: clamp(50px, 12vw, 120px);
+            background: var(--accent);
+            opacity: 0.14;
+            pointer-events: none;
+        }
+
+        /* Closing table */
+        .closing-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: clamp(0.65rem, 1.2vw, 0.88rem);
+            flex-shrink: 0;
+        }
+        .closing-table thead tr { background: var(--accent); }
+        .closing-table thead th {
+            font-family: var(--font-display);
+            font-weight: 700;
+            text-align: left;
+            padding: clamp(0.35rem, 0.8vw, 0.6rem) clamp(0.5rem, 1.2vw, 0.9rem);
+            color: white;
+            letter-spacing: 0.04em;
+        }
+        .closing-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.07); }
+        .closing-table tbody td {
+            padding: clamp(0.3rem, 0.7vw, 0.55rem) clamp(0.5rem, 1.2vw, 0.9rem);
+            vertical-align: top;
+        }
+        .closing-table td.before { color: rgba(255,255,255,0.3); text-decoration: line-through; }
+        .closing-table td.after { color: rgba(255,255,255,0.88); }
+        .closing-note {
+            font-size: var(--small-size);
+            color: rgba(255,255,255,0.35);
+            font-style: italic;
+            line-height: 1.5;
+        }
+
+        /* Source attribution */
+        .source-attr {
+            font-size: clamp(0.55rem, 0.85vw, 0.68rem);
+            color: var(--ink-light);
+            font-style: italic;
+            margin-top: auto;
+            flex-shrink: 0;
+        }
+
+        /* === PROGRESS BAR === */
+        .progress-bar {
+            position: fixed;
+            top: 0; left: 0;
+            height: 3px;
+            background: var(--accent);
+            transition: width 0.3s ease;
+            z-index: 1000;
+            width: 0;
+        }
+
+        /* === NAV DOTS === */
+        .nav-dots {
+            position: fixed;
+            right: clamp(0.6rem, 1.5vw, 1.2rem);
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: clamp(5px, 0.8vh, 8px);
+            z-index: 100;
+        }
+        .nav-dot {
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.18);
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+        .nav-dot.active { background: var(--accent); transform: scale(1.5); }
+        .dark-slide ~ .nav-dots .nav-dot { background: rgba(255,255,255,0.2); }
+
+        /* === KEYBOARD HINT === */
+        .keyboard-hint {
+            position: fixed;
+            bottom: clamp(0.5rem, 1.2vw, 0.9rem);
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: clamp(0.5rem, 0.8vw, 0.65rem);
+            color: var(--ink-light);
+            opacity: 0.5;
+            z-index: 100;
+            pointer-events: none;
+            letter-spacing: 0.05em;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="progress-bar" id="progressBar"></div>
+    <nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
+    <p class="keyboard-hint" aria-hidden="true">↑ ↓ arrow keys · space</p>
+
+    <!-- =============================================
+         SLIDE 01 — TITLE
+         ============================================= -->
+    <section class="slide dark-slide title-slide" id="slide-1" aria-label="Title slide">
+        <div class="slide-meta">
+            <span class="slide-num">01 / 14</span>
+            <span class="slide-label">Conference Talk</span>
+        </div>
+        <div class="slide-body" style="justify-content:center;">
+            <p class="title-eyebrow reveal">AI Development Lifecycle</p>
+            <h1 class="reveal">The Minimal AI Dev Lifecycle<br><em>That Works</em></h1>
+            <div class="title-author reveal">
+                <div class="title-author-line"></div>
+                <p class="title-author-name">Hong · Platform Developer</p>
+            </div>
+        </div>
+        <div class="geo-circle" aria-hidden="true"></div>
+        <div class="geo-rect" aria-hidden="true"></div>
+        <span class="bg-num" aria-hidden="true">01</span>
+    </section>
+
+    <!-- =============================================
+         SLIDE 02 — THE PROBLEM
+         ============================================= -->
+    <section class="slide" id="slide-2" aria-label="The Problem">
+        <div class="slide-meta">
+            <span class="slide-num">02 / 14</span>
+            <span class="slide-label">The Problem</span>
+        </div>
+        <div class="slide-body">
+            <div class="section-head reveal">
+                <div class="section-bar"></div>
+                <h2>Sound Familiar?</h2>
+            </div>
+            <div class="quote-block reveal">
+                <p>"You got the AI license. So why is the sprint board still the same?"</p>
+            </div>
+            <ul class="bullets reveal">
+                <li>Features and user stories are still vague</li>
+                <li>Story points haven't moved — the Scrum Master and PO aren't happy</li>
+                <li>Code review load is <strong>heavier</strong>, not lighter</li>
+                <li>You're expected to deliver more — but are you?</li>
+            </ul>
+        </div>
+        <span class="bg-num" aria-hidden="true">02</span>
+    </section>
+
+    <!-- =============================================
+         SLIDE 03 — THE BROKEN LOOP
+         ============================================= -->
+    <section class="slide" id="slide-3" aria-label="The Broken Loop">
+        <div class="slide-meta">
+            <span class="slide-num">03 / 14</span>
+            <span class="slide-label">The Broken Loop</span>
+        </div>
+        <div class="slide-body">
+            <div class="section-head reveal">
+                <div class="section-bar"></div>
+                <h2>The Bottleneck Isn't Speed</h2>
+            </div>
+            <div class="code-block reveal">Vague requirement → AI writes something → <span class="hl">Wrong thing, fast</span></div>
+            <ul class="bullets reveal">
+                <li><strong>Upstream:</strong> No clear spec → AI hallucinates intent</li>
+                <li><strong>Midstream:</strong> No constraints → every developer ships differently</li>
+                <li><strong>Downstream:</strong> No evaluation → bugs reach humans, not AI</li>
+            </ul>
+            <div class="quote-block reveal">
+                <p>Giving AI to a broken process doesn't fix the process. It just breaks it faster.</p>
+            </div>
+        </div>
+        <span class="bg-num" aria-hidden="true">03</span>
+    </section>
+
+    <!-- =============================================
+         SLIDE 04 — AI EVOLUTION
+         ============================================= -->
+    <section class="slide" id="slide-4" aria-label="AI Evolution">
+        <div class="slide-meta">
+            <span class="slide-num">04 / 14</span>
+            <span class="slide-label">Evolution</span>
+        </div>
+        <div class="slide-body">
+            <div class="section-head reveal">
+                <div class="section-bar"></div>
+                <h2>How We Got Here</h2>
+            </div>
+            <div class="stage-row reveal">
+                <div class="stage-item">
+                    <p class="stage-label">Stage 1</p>
+                    <p class="stage-name">Prompt Engineering</p>
+                    <p class="stage-desc">Learn to write better prompts</p>
+                </div>
+                <div class="stage-item">
+                    <p class="stage-label">Stage 2</p>
+                    <p class="stage-name">Context Engineering</p>
+                    <p class="stage-desc">Set up AGENTS.md, configure MCPs</p>
+                </div>
+                <div class="stage-item active">
+                    <p class="stage-label">Stage 3</p>
+                    <p class="stage-name">Harness Engineering</p>
+                    <p class="stage-desc">Build a system <em>around</em> the AI</p>
+                </div>
+            </div>
+            <p class="reveal" style="font-size:var(--small-size);color:var(--ink-light);font-style:italic;">Most teams are still in stage one or two.</p>
+        </div>
+        <span class="bg-num" aria-hidden="true">04</span>
+    </section>
+
+    <!-- =============================================
+         SLIDE 05 — HARNESS ENGINEERING
+         ============================================= -->
+    <section class="slide" id="slide-5" aria-label="Harness Engineering">
+        <div class="slide-meta">
+            <span class="slide-num">05 / 14</span>
+            <span class="slide-label">Harness Engineering</span>
+        </div>
+        <div class="slide-body">
+            <div class="section-head reveal">
+                <div class="section-bar"></div>
+                <h2>Harness Engineering</h2>
+            </div>
+            <p class="reveal" style="font-size:var(--body-size);color:var(--ink-mid);">A harness wraps around an AI agent to provide four key functions:</p>
+            <div class="harness-grid reveal">
+                <div class="harness-card">
+                    <p class="harness-card-title">Constrain</p>
+                    <p>Architectural boundaries, dependency rules, sandboxing, least-privilege permissions</p>
+                </div>
+                <div class="harness-card">
+                    <p class="harness-card-title">Inform</p>
+                    <p>Context engineering, documentation, system prompts, runtime policies</p>
+                </div>
+                <div class="harness-card">
+                    <p class="harness-card-title">Verify</p>
+                    <p>Testing gates, linters, CI validation, format checks</p>
+                </div>
+                <div class="harness-card">
+                    <p class="harness-card-title">Correct</p>
+                    <p>Feedback loops, self-repair mechanisms, agents that fix inconsistencies over time</p>
+                </div>
+            </div>
+        </div>
+        <span class="bg-num" aria-hidden="true">05</span>
+    </section>
+
+    <!-- =============================================
+         SLIDE 06 — THE LIFECYCLE
+         ============================================= -->
+    <section class="slide" id="slide-6" aria-label="AI-Native Dev Lifecycle">
+        <div class="slide-meta">
+            <span class="slide-num">06 / 14</span>
+            <span class="slide-label">The Lifecycle</span>
+        </div>
+        <div class="slide-body">
+            <div class="section-head reveal">
+                <div class="section-bar"></div>
+                <h2>AI-Native Dev Lifecycle</h2>
+            </div>
+            <div class="flow-steps reveal">
+                <span class="flow-step">Bootstrap</span>
+                <span class="flow-arrow">→</span>
+                <span class="flow-step">Design</span>
+                <span class="flow-arrow">→</span>
+                <span class="flow-step">Code</span>
+                <span class="flow-arrow">→</span>
+                <span class="flow-step">Review</span>
+                <span class="flow-arrow">→</span>
+                <span class="flow-step">Test</span>
+                <span class="flow-arrow">→</span>
+                <span class="flow-step">Ship</span>
+                <span class="flow-note">&nbsp; ↩ loop back to Design</span>
+            </div>
+            <table class="data-table reveal">
+                <thead><tr><th>Phase</th><th>Who Does It</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>Bootstrap</strong></td><td>You + AI (once)</td></tr>
+                    <tr><td><strong>Design</strong></td><td>AI asks, you + your team answer, specs emerge</td></tr>
+                    <tr><td><strong>Code</strong></td><td>AI writes, guided by specs</td></tr>
+                    <tr><td><strong>Review</strong></td><td>AI checks first, human validates</td></tr>
+                    <tr><td><strong>Test</strong></td><td>AI handles unit + integration; you do E2E</td></tr>
+                    <tr><td><strong>Ship</strong></td><td>You</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <span class="bg-num" aria-hidden="true">06</span>
+    </section>
+
+    <!-- =============================================
+         SLIDE 07 — BOOTSTRAP
+         ============================================= -->
+    <section class="slide" id="slide-7" aria-label="Bootstrap Phase">
+        <div class="slide-meta">
+            <span class="slide-num">07 / 14</span>
+            <span class="slide-label">Bootstrap</span>
+        </div>
+        <div class="slide-body">
+            <div class="section-head reveal">
+                <div class="section-bar"></div>
+                <h2>Bootstrap: Set the Stage Once</h2>
+            </div>
+            <div class="quote-block reveal">
+                <p>The one-time scaffold that makes everything else faster</p>
+            </div>
+            <ul class="bullets reveal">
+                <li>Repository structure</li>
+                <li>Architecture design</li>
+                <li>CI configuration</li>
+                <li>Formatting rules, package manager, app framework</li>
+            </ul>
+            <p class="reveal" style="font-family:var(--font-display);font-weight:700;font-size:var(--body-size);color:var(--ink);">
+                Get this right once — and the AI has rails to run on.
+            </p>
+        </div>
+        <span class="bg-num" aria-hidden="true">07</span>
+    </section>
+
+    <!-- =============================================
+         SLIDE 08 — DESIGN PHASE
+         ============================================= -->
+    <section class="slide" id="slide-8" aria-label="Design Phase">
+        <div class="slide-meta">
+            <span class="slide-num">08 / 14</span>
+            <span class="slide-label">Design Phase</span>
+        </div>
+        <div class="slide-body">
+            <div class="section-head reveal">
+                <div class="section-bar"></div>
+                <h2>Design: The AI as Your Thinking Partner</h2>
+            </div>
+            <div class="quote-block reveal">
+                <p>"What are you really trying to solve?"</p>
+            </div>
+            <p class="reveal" style="font-size:var(--body-size);color:var(--ink-mid);">Before any code is written, the agent asks — then:</p>
+            <div class="steps-list reveal">
+                <div class="step-item">
+                    <span class="step-num">1</span>
+                    <p class="step-text">Asks <strong>clarifying questions</strong></p>
+                </div>
+                <div class="step-item">
+                    <span class="step-num">2</span>
+                    <p class="step-text"><strong>Brainstorms solutions</strong> with you</p>
+                </div>
+                <div class="step-item">
+                    <span class="step-num">3</span>
+                    <p class="step-text">Produces a <strong>design document</strong> and <strong>specs</strong> the agent will later use to write code</p>
+                </div>
+            </div>
+        </div>
+        <span class="bg-num" aria-hidden="true">08</span>
+    </section>
+
+    <!-- =============================================
+         SLIDE 09 — CODE · REVIEW · TEST
+         ============================================= -->
+    <section class="slide" id="slide-9" aria-label="Code Review Test">
+        <div class="slide-meta">
+            <span class="slide-num">09 / 14</span>
+            <span class="slide-label">Code · Review · Test</span>
+        </div>
+        <div class="slide-body">
+            <div class="section-head reveal">
+                <div class="section-bar"></div>
+                <h2>Code · Review · Test</h2>
+            </div>
+            <div class="three-col reveal">
+                <div class="col-card">
+                    <h3>Code</h3>
+                    <p>The agent writes code <em>from the spec</em> — not from guesswork.</p>
+                </div>
+                <div class="col-card">
+                    <h3>Review</h3>
+                    <p>AI reviews before humans do:</p>
+                    <ul>
+                        <li>Code quality</li>
+                        <li>Readability</li>
+                        <li>Security</li>
+                        <li>Bug detection</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>Test</h3>
+                    <p><strong>AI handles:</strong> unit tests, integration tests</p>
+                    <p style="margin-top:clamp(0.2rem,0.5vw,0.4rem);"><strong>You handle:</strong> end-to-end, real-world validation</p>
+                </div>
+            </div>
+        </div>
+        <span class="bg-num" aria-hidden="true">09</span>
+    </section>
+
+    <!-- =============================================
+         SLIDE 10 — CONTEXT DRIFT
+         ============================================= -->
+    <section class="slide" id="slide-10" aria-label="Context Drift">
+        <div class="slide-meta">
+            <span class="slide-num">10 / 14</span>
+            <span class="slide-label">Context Drift</span>
+        </div>
+        <div class="slide-body">
+            <div class="section-head reveal">
+                <div class="section-bar"></div>
+                <h2>The Real Enemy Is Context Drift</h2>
+            </div>
+            <p class="reveal" style="font-size:var(--body-size);color:var(--ink-mid);">The longer a project runs, the more the AI loses the plot.</p>
+            <ul class="bullets reveal">
+                <li>Specs go stale</li>
+                <li>The AI pattern-matches locally instead of navigating purposefully</li>
+                <li>Developers and agents diverge silently</li>
+            </ul>
+            <div class="big-callout reveal">
+                Context isn't a file.<br><span>It's a discipline.</span>
+            </div>
+        </div>
+        <span class="bg-num" aria-hidden="true">10</span>
+    </section>
+
+    <!-- =============================================
+         SLIDE 11 — THE AGENTS.MD TRAP
+         ============================================= -->
+    <section class="slide" id="slide-11" aria-label="The AGENTS.md Trap">
+        <div class="slide-meta">
+            <span class="slide-num">11 / 14</span>
+            <span class="slide-label">AGENTS.md</span>
+        </div>
+        <div class="slide-body">
+            <div class="section-head reveal">
+                <div class="section-bar"></div>
+                <h2>The "One Big AGENTS.md" Mistake</h2>
+            </div>
+            <ul class="bullets reveal">
+                <li>Context is scarce — a huge file crowds out the actual task</li>
+                <li>When everything is "important," nothing is</li>
+                <li>It rots instantly — stale rules, silent drift</li>
+                <li>Hard to verify coverage, freshness, or ownership</li>
+            </ul>
+            <p class="reveal" style="font-family:var(--font-display);font-weight:700;font-size:var(--body-size);color:var(--ink);">
+                Treat AGENTS.md as a <em style="color:var(--accent);font-style:normal;">table of contents</em>, not an encyclopedia.
+            </p>
+            <div class="code-block reveal"><span class="op">.</span>
+<span class="op">├──</span> <span class="hl">AGENTS.md</span>                          <span class="op">← navigation only</span>
+<span class="op">├──</span> <span class="hl">ARCHITECTURE.md</span>                    <span class="op">← system decisions</span>
+<span class="op">└── docs/</span>
+<span class="op">    ├── specs/</span>
+<span class="op">    │   └── YYYY-MM-DD-&lt;topic&gt;-design.md</span>
+<span class="op">    └── generated/</span>
+<span class="op">        └── db-schema.md</span></div>
+        </div>
+        <span class="bg-num" aria-hidden="true">11</span>
+    </section>
+
+    <!-- =============================================
+         SLIDE 12 — SKILLS
+         ============================================= -->
+    <section class="slide" id="slide-12" aria-label="Skills">
+        <div class="slide-meta">
+            <span class="slide-num">12 / 14</span>
+            <span class="slide-label">Skills</span>
+        </div>
+        <div class="slide-body">
+            <div class="section-head reveal">
+                <div class="section-bar"></div>
+                <h2>Skills: Reusable Pieces of the Harness</h2>
+            </div>
+            <p class="reveal" style="font-size:var(--body-size);color:var(--ink-mid);">A skill is a pre-built, composable unit that plugs into any phase of the lifecycle:</p>
+            <table class="data-table reveal">
+                <thead><tr><th>Phase</th><th>Skill</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>Bootstrap</strong></td><td>awesome-copilot/architecture-blueprint-generator</td></tr>
+                    <tr><td><strong>Design</strong></td><td>superpowers/brainstorming, superpowers/writing-plans</td></tr>
+                    <tr><td><strong>Code</strong></td><td>superpowers/subagent-driven-development</td></tr>
+                </tbody>
+            </table>
+            <div class="code-block reveal"><span class="op"># Available at:</span>
+<span class="hl">https://skills.sh/github/awesome-copilot/architecture-blueprint-generator</span>
+<span class="hl">https://skills.sh/obra/superpowers</span></div>
+        </div>
+        <span class="bg-num" aria-hidden="true">12</span>
+    </section>
+
+    <!-- =============================================
+         SLIDE 13 — CLOSING: THE SHIFT
+         ============================================= -->
+    <section class="slide dark-slide" id="slide-13" aria-label="The Shift in Engineering Roles">
+        <div class="slide-meta">
+            <span class="slide-num">13 / 14</span>
+            <span class="slide-label">The Shift</span>
+        </div>
+        <div class="slide-body">
+            <div class="section-head reveal">
+                <div class="section-bar" style="background:var(--accent-mid);"></div>
+                <h2>The Shift in Engineering Roles</h2>
+            </div>
+            <table class="closing-table reveal">
+                <thead><tr><th>Before</th><th>After</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td class="before">AI = faster typing</td>
+                        <td class="after">AI = a system you design</td>
+                    </tr>
+                    <tr>
+                        <td class="before">More licenses = more output</td>
+                        <td class="after">Better harness = better output</td>
+                    </tr>
+                    <tr>
+                        <td class="before">One big AGENTS.md</td>
+                        <td class="after">Structured, navigable context</td>
+                    </tr>
+                    <tr>
+                        <td class="before">Writing repetitive implementation code</td>
+                        <td class="after">Designing architecture, policies, and context</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="reveal" style="font-size:var(--small-size);color:rgba(255,255,255,0.4);font-style:italic;margin-top:clamp(0.1rem,0.3vw,0.25rem);">New core skills:</p>
+            <ul class="bullets reveal" style="margin-top:clamp(0.2rem,0.5vw,0.4rem);">
+                <li style="color:rgba(255,255,255,0.7);">Context engineering</li>
+                <li style="color:rgba(255,255,255,0.7);">Policy-as-code</li>
+                <li style="color:rgba(255,255,255,0.7);">Agent orchestration</li>
+                <li style="color:rgba(255,255,255,0.7);">Architecture governance</li>
+            </ul>
+        </div>
+        <span class="bg-num" aria-hidden="true">13</span>
+    </section>
+
+    <!-- =============================================
+         SLIDE 14 — THANKS
+         ============================================= -->
+    <section class="slide dark-slide" id="slide-14" aria-label="Thanks">
+        <div class="slide-meta">
+            <span class="slide-num">14 / 14</span>
+            <span class="slide-label">Thanks</span>
+        </div>
+        <div class="slide-body" style="justify-content:center;align-items:flex-start;">
+            <h1 class="reveal" style="color:white;font-size:clamp(3rem,10vw,7rem);">Thanks!</h1>
+            <div class="title-author reveal" style="margin-top:clamp(0.75rem,2vw,1.5rem);">
+                <div class="title-author-line"></div>
+                <p class="title-author-name">Hong · Platform Developer</p>
+            </div>
+        </div>
+        <div class="geo-circle" aria-hidden="true"></div>
+        <div class="geo-rect" aria-hidden="true"></div>
+        <span class="bg-num" aria-hidden="true">14</span>
+    </section>
+
+    <script>
+        /* === SLIDE PRESENTATION CONTROLLER === */
+        class SlidePresentation {
+            constructor() {
+                this.slides = Array.from(document.querySelectorAll('.slide'));
+                this.total = this.slides.length;
+                this.current = 0;
+                this.scrollLocked = false;
+
+                this.progressBar = document.getElementById('progressBar');
+                this.navContainer = document.getElementById('navDots');
+
+                this.buildNavDots();
+                this.observeSlides();
+                this.bindKeyboard();
+                this.bindTouch();
+                this.bindWheel();
+
+                // Activate first slide immediately
+                this.slides[0].classList.add('visible');
+                this.update(0);
+            }
+
+            /* Build navigation dots */
+            buildNavDots() {
+                this.dots = this.slides.map((_, i) => {
+                    const dot = document.createElement('button');
+                    dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+                    dot.setAttribute('aria-label', `Slide ${i + 1}`);
+                    dot.addEventListener('click', () => this.goTo(i));
+                    this.navContainer.appendChild(dot);
+                    return dot;
+                });
+            }
+
+            /* Intersection observer triggers .visible class → CSS animations */
+            observeSlides() {
+                const io = new IntersectionObserver(entries => {
+                    entries.forEach(e => {
+                        if (e.isIntersecting) {
+                            e.target.classList.add('visible');
+                            this.current = this.slides.indexOf(e.target);
+                            this.update(this.current);
+                        }
+                    });
+                }, { threshold: 0.5 });
+
+                this.slides.forEach(s => io.observe(s));
+            }
+
+            /* Navigate to slide index */
+            goTo(index) {
+                if (index < 0 || index >= this.total) return;
+                this.slides[index].scrollIntoView({ behavior: 'smooth' });
+            }
+
+            /* Update progress bar + nav dots */
+            update(index) {
+                const pct = ((index + 1) / this.total) * 100;
+                this.progressBar.style.width = pct + '%';
+                this.dots.forEach((d, i) => d.classList.toggle('active', i === index));
+            }
+
+            /* Keyboard navigation */
+            bindKeyboard() {
+                document.addEventListener('keydown', e => {
+                    switch (e.key) {
+                        case 'ArrowDown': case 'ArrowRight': case ' ':
+                            e.preventDefault(); this.goTo(this.current + 1); break;
+                        case 'ArrowUp': case 'ArrowLeft':
+                            e.preventDefault(); this.goTo(this.current - 1); break;
+                        case 'Home': e.preventDefault(); this.goTo(0); break;
+                        case 'End':  e.preventDefault(); this.goTo(this.total - 1); break;
+                    }
+                });
+            }
+
+            /* Touch / swipe navigation */
+            bindTouch() {
+                let y0 = 0, x0 = 0;
+                document.addEventListener('touchstart', e => {
+                    y0 = e.touches[0].clientY;
+                    x0 = e.touches[0].clientX;
+                }, { passive: true });
+                document.addEventListener('touchend', e => {
+                    const dy = y0 - e.changedTouches[0].clientY;
+                    const dx = x0 - e.changedTouches[0].clientX;
+                    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 45) {
+                        this.goTo(dy > 0 ? this.current + 1 : this.current - 1);
+                    }
+                });
+            }
+
+            /* Mouse wheel navigation (debounced) */
+            bindWheel() {
+                document.addEventListener('wheel', e => {
+                    if (this.scrollLocked) return;
+                    this.scrollLocked = true;
+                    setTimeout(() => { this.scrollLocked = false; }, 750);
+                    if (e.deltaY > 15)  this.goTo(this.current + 1);
+                    if (e.deltaY < -15) this.goTo(this.current - 1);
+                }, { passive: true });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => new SlidePresentation());
+    </script>
+</body>
+</html>

@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A Minimal AI Development Lifecycle — Yew Hong Tat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,800;0,900;1,900&family=Nunito:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+
+/* ===========================================
+   THEME — Swiss Modern · Violet
+   Change --violet to retheme everything
+   =========================================== */
+:root {
+    --violet:       #6d28d9;
+    --violet-pale:  rgba(109,40,217,0.055);
+    --violet-faint: rgba(109,40,217,0.03);
+    --violet-mid:   rgba(109,40,217,0.16);
+    --bg:           #ffffff;
+    --ink:          #0a0a0a;
+    --dark:         #1c1c1c;
+    --mid:          #3f3f3f;
+    --muted:        #858585;
+    --rule:         rgba(0,0,0,0.08);
+    --grid:         rgba(0,0,0,0.035);
+
+    --f-disp: 'Archivo', sans-serif;
+    --f-body: 'Nunito', sans-serif;
+
+    /* All sizes via clamp() */
+    --sz-hero:   clamp(2.2rem,  6vw,   5.5rem);
+    --sz-h2:     clamp(1.3rem,  3.5vw, 2.8rem);
+    --sz-h3:     clamp(1rem,    2.2vw, 1.6rem);
+    --sz-body:   clamp(0.75rem, 1.4vw, 1.05rem);
+    --sz-sm:     clamp(0.62rem, 0.95vw, 0.82rem);
+    --pad:       clamp(1.5rem,  4.5vw, 5.5rem);
+    --gap:       clamp(0.5rem,  1.8vw, 1.8rem);
+    --gap-sm:    clamp(0.25rem, 0.8vw, 0.7rem);
+
+    --ease: cubic-bezier(0.16,1,0.3,1);
+    --t: 0.65s;
+}
+
+/* ===========================================
+   VIEWPORT BASE (mandatory)
+   =========================================== */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow-x:hidden; }
+html { scroll-snap-type:y mandatory; scroll-behavior:smooth; }
+
+.slide {
+    width:100vw; height:100vh; height:100dvh;
+    overflow:hidden; scroll-snap-align:start;
+    display:flex; flex-direction:column; position:relative;
+}
+img { max-width:100%; max-height:min(50vh,400px); object-fit:contain; }
+
+@media (max-height:700px)  {
+    :root { --pad:clamp(0.75rem,3vw,2rem); --gap:clamp(0.4rem,1.2vw,1rem); --sz-hero:clamp(1.4rem,4.5vw,2.8rem); --sz-h2:clamp(1rem,2.8vw,1.8rem); }
+}
+@media (max-height:600px)  {
+    :root { --pad:clamp(0.5rem,2vw,1.5rem); --sz-hero:clamp(1.1rem,4vw,2rem); --sz-body:clamp(0.65rem,1.1vw,0.9rem); }
+    .nav-dots,.decorative { display:none; }
+}
+@media (max-height:500px)  {
+    :root { --pad:clamp(0.4rem,2vw,1rem); --sz-hero:clamp(1rem,3.5vw,1.6rem); --sz-h2:clamp(0.9rem,2.2vw,1.3rem); }
+}
+@media (max-width:640px) {
+    :root { --sz-hero:clamp(1.4rem,7vw,2.8rem); }
+    .two-col,.three-col { grid-template-columns:1fr !important; }
+    .right-border { border-left:none !important; border-top:1px solid var(--rule); }
+}
+@media (prefers-reduced-motion:reduce) {
+    *,*::before,*::after { animation-duration:0.01ms !important; transition-duration:0.15s !important; }
+    html { scroll-behavior:auto; }
+}
+
+/* ===========================================
+   EVERY SLIDE — grid bg + violet top + black bottom
+   =========================================== */
+body { background:var(--bg); font-family:var(--f-body); }
+
+.slide {
+    background-color: var(--bg);
+    background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: clamp(48px,7vw,96px) clamp(48px,7vw,96px);
+}
+.slide::before {
+    content:''; position:absolute; top:0; left:0; right:0;
+    height:clamp(5px,0.75vh,8px); background:var(--violet); z-index:20;
+}
+.slide::after {
+    content:''; position:absolute; bottom:0; left:0; right:0;
+    height:clamp(3px,0.4vh,5px); background:var(--ink); z-index:20;
+}
+
+/* ===========================================
+   NAV CHROME
+   =========================================== */
+.progress-bar {
+    position:fixed; bottom:0; left:0;
+    height:clamp(3px,0.4vh,5px); background:var(--violet);
+    z-index:300; transition:width 0.3s ease; width:0%; pointer-events:none;
+}
+.nav-dots {
+    position:fixed; right:clamp(0.6rem,1.2vw,1rem); top:50%;
+    transform:translateY(-50%); display:flex; flex-direction:column;
+    gap:clamp(5px,0.8vh,9px); z-index:300; list-style:none;
+}
+.nav-dot {
+    width:clamp(5px,0.7vw,7px); height:clamp(5px,0.7vw,7px);
+    border-radius:50%; background:rgba(0,0,0,0.15); cursor:pointer;
+    transition:background 0.2s,transform 0.2s; border:none; padding:0; display:block;
+}
+.nav-dot.active { background:var(--violet); transform:scale(1.55); }
+
+/* Slide label top-left / counter top-right */
+.lbl {
+    position:absolute; top:clamp(0.9rem,2vh,1.7rem); left:var(--pad);
+    font-family:var(--f-disp); font-size:var(--sz-sm); font-weight:800;
+    letter-spacing:0.2em; text-transform:uppercase; color:var(--violet); z-index:15;
+}
+.ctr {
+    position:absolute; top:clamp(0.9rem,2vh,1.7rem); right:var(--pad);
+    font-family:var(--f-disp); font-size:var(--sz-sm); font-weight:400;
+    color:var(--muted); letter-spacing:0.08em; z-index:15;
+}
+
+/* ===========================================
+   ANIMATION — triggered by .slide.visible
+   =========================================== */
+.rv   { opacity:0; transform:translateY(20px); transition:opacity var(--t) var(--ease), transform var(--t) var(--ease); }
+.rv-l { opacity:0; transform:translateX(-24px); transition:opacity var(--t) var(--ease), transform var(--t) var(--ease); }
+.rv-r { opacity:0; transform:translateX(24px);  transition:opacity var(--t) var(--ease), transform var(--t) var(--ease); }
+.rv-s { opacity:0; transform:scale(0.94);        transition:opacity var(--t) var(--ease), transform var(--t) var(--ease); }
+.vbar { transform:scaleY(0); transform-origin:top; transition:transform 0.9s var(--ease) 0.1s; }
+
+.slide.visible .rv,
+.slide.visible .rv-l,
+.slide.visible .rv-r,
+.slide.visible .rv-s  { opacity:1; transform:none; }
+.slide.visible .vbar  { transform:scaleY(1); }
+
+.d1 { transition-delay:0.04s; } .d2 { transition-delay:0.13s; }
+.d3 { transition-delay:0.22s; } .d4 { transition-delay:0.31s; }
+.d5 { transition-delay:0.40s; } .d6 { transition-delay:0.49s; }
+.d7 { transition-delay:0.58s; } .d8 { transition-delay:0.67s; }
+
+/* ===========================================
+   LAYOUT UTILITIES
+   =========================================== */
+.two-col {
+    display:grid; height:100%;
+    grid-template-columns: var(--cols, 1fr 1fr);
+    overflow:hidden;
+}
+.col {
+    display:flex; flex-direction:column; justify-content:center;
+    padding: clamp(4rem,8vh,9rem) var(--pad) clamp(2rem,4vh,4rem);
+    overflow:hidden; position:relative;
+}
+.right-border { border-left:1px solid var(--rule); }
+
+.full {
+    height:100%; display:flex; flex-direction:column;
+    padding: clamp(4rem,8vh,9rem) var(--pad) clamp(2rem,4vh,4rem);
+    overflow:hidden;
+}
+.full-center {
+    height:100%; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+    padding: clamp(4rem,8vh,9rem) var(--pad) clamp(2rem,4vh,4rem);
+    overflow:hidden;
+}
+
+/* Violet vertical bar */
+.v-bar {
+    position:absolute; left:calc(-1 * clamp(1.5px,0.15vw,2.5px)); top:12%; bottom:12%;
+    width:clamp(3px,0.3vw,5px); background:var(--violet); z-index:5;
+}
+
+/* ===========================================
+   TYPE COMPONENTS
+   =========================================== */
+h1 {
+    font-family:var(--f-disp); font-weight:900; text-transform:uppercase;
+    letter-spacing:-0.03em; color:var(--ink); line-height:0.92;
+    font-size:var(--sz-hero);
+}
+h2 {
+    font-family:var(--f-disp); font-weight:800; text-transform:uppercase;
+    letter-spacing:-0.02em; color:var(--dark); line-height:1.05;
+    font-size:var(--sz-h2);
+}
+h3 {
+    font-family:var(--f-disp); font-weight:800; color:var(--dark);
+    font-size:var(--sz-h3); letter-spacing:-0.01em;
+}
+.accent { color:var(--violet); }
+
+/* Eyebrow */
+.eyebrow {
+    font-family:var(--f-disp); font-size:var(--sz-sm); font-weight:800;
+    letter-spacing:0.2em; text-transform:uppercase; color:var(--violet); display:block;
+}
+.eyebrow-muted { color:var(--muted) !important; }
+
+/* Body */
+.body { font-family:var(--f-body); font-size:var(--sz-body); color:var(--mid); line-height:1.7; }
+
+/* Violet rule */
+.vr { display:block; width:clamp(32px,5vw,60px); height:clamp(3px,0.45vh,5px); background:var(--violet); flex-shrink:0; }
+/* Full-width rules */
+.hr  { display:block; width:100%; height:1px; background:var(--rule); flex-shrink:0; }
+.hr2 { display:block; width:100%; height:2px; background:var(--dark); flex-shrink:0; }
+
+/* Mono code chip */
+.chip {
+    display:inline-block; font-family:'Courier New',monospace;
+    font-size:calc(var(--sz-sm) * 0.95); background:var(--violet-pale); color:var(--violet);
+    padding:0.22em 0.55em; border-radius:2px; border:1px solid var(--violet-mid);
+    letter-spacing:0.02em; vertical-align:baseline;
+}
+
+/* Ghost number (decorative) */
+.ghost {
+    font-family:var(--f-disp); font-weight:900; line-height:0.85;
+    letter-spacing:-0.06em; user-select:none; pointer-events:none;
+    color:rgba(0,0,0,0.04); overflow:hidden;
+}
+
+/* ===========================================
+   DASH LIST
+   =========================================== */
+.dlist { list-style:none; display:flex; flex-direction:column; }
+.dlist li {
+    display:grid; grid-template-columns:clamp(13px,1.7vw,20px) 1fr;
+    gap:clamp(0.4rem,0.9vw,0.75rem);
+    padding:clamp(0.33rem,0.85vh,0.65rem) 0;
+    border-bottom:1px solid var(--rule); align-items:baseline;
+}
+.dlist li:last-child { border-bottom:none; }
+.dlist li .d { font-family:var(--f-disp); font-weight:900; color:var(--violet); font-size:0.78em; }
+.dlist li .tx { font-family:var(--f-body); font-size:var(--sz-body); color:var(--mid); line-height:1.55; }
+.dlist li .tx b {
+    font-weight:600; color:var(--dark); font-family:var(--f-disp);
+    font-size:0.91em; text-transform:uppercase; letter-spacing:0.04em;
+}
+
+/* ===========================================
+   STEP LIST (numbered)
+   =========================================== */
+.slist { list-style:none; display:flex; flex-direction:column; }
+.slist li {
+    display:grid; grid-template-columns:clamp(1.8rem,2.6vw,2.8rem) 1fr;
+    gap:clamp(0.5rem,1.3vw,1.1rem);
+    padding:clamp(0.38rem,0.9vh,0.72rem) 0;
+    border-bottom:1px solid var(--rule); align-items:baseline;
+}
+.slist li:last-child { border-bottom:none; }
+.slist li .n { font-family:var(--f-disp); font-weight:900; color:var(--violet); font-size:var(--sz-body); }
+.slist li .tx { font-family:var(--f-body); font-size:var(--sz-body); color:var(--mid); line-height:1.55; }
+.slist li .tx b {
+    display:block; font-weight:800; color:var(--dark); font-family:var(--f-disp);
+    font-size:0.88em; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.08em;
+}
+
+/* ===========================================
+   CARD TRIO
+   =========================================== */
+.three-col {
+    display:grid; grid-template-columns:repeat(3,1fr);
+    gap:clamp(0.5rem,1.4vw,1.1rem); overflow:hidden;
+}
+.card {
+    border:1px solid var(--rule);
+    border-top:clamp(3px,0.45vh,5px) solid var(--violet);
+    padding:clamp(0.8rem,1.9vh,1.5rem) clamp(0.75rem,1.4vw,1.2rem);
+    display:flex; flex-direction:column; gap:var(--gap-sm); overflow:hidden;
+    background:var(--bg);
+}
+.card .cg {
+    font-family:var(--f-disp); font-weight:900;
+    font-size:clamp(1.4rem,3.3vw,2.8rem);
+    color:rgba(0,0,0,0.048); line-height:1; margin-bottom:0.05em;
+}
+.card h3 { font-size:clamp(0.78rem,1.5vw,1.05rem); text-transform:uppercase; letter-spacing:0.06em; }
+.card p  { font-family:var(--f-body); font-size:var(--sz-sm); color:var(--muted); line-height:1.62; }
+
+/* ===========================================
+   LOOP GRID (2-col, slide 10)
+   =========================================== */
+.loop-grid {
+    display:grid; grid-template-columns:1fr 1fr;
+    gap:clamp(0.2rem,0.5vh,0.5rem) clamp(1rem,3vw,3.5rem);
+    overflow:hidden; flex:1; align-content:center;
+}
+.loop-step {
+    display:flex; align-items:baseline; gap:clamp(0.4rem,0.9vw,0.8rem);
+    padding:clamp(0.28rem,0.75vh,0.6rem) 0; border-bottom:1px solid var(--rule);
+}
+.loop-step .sn {
+    font-family:var(--f-disp); font-weight:900; line-height:1;
+    font-size:clamp(1.3rem,3.2vw,2.8rem);
+    color:rgba(109,40,217,0.1); min-width:clamp(1.6rem,2.8vw,2.8rem); flex-shrink:0;
+}
+.loop-step .sc b  {
+    display:block; font-family:var(--f-disp); font-weight:800; font-size:var(--sz-sm);
+    text-transform:uppercase; letter-spacing:0.06em; color:var(--dark);
+}
+.loop-step .sc span { font-family:var(--f-body); font-size:var(--sz-sm); color:var(--muted); line-height:1.45; }
+
+/* ===========================================
+   SLIDE 1 — TITLE (special rules)
+   =========================================== */
+#s1 .left { justify-content:flex-end; gap:clamp(0.4rem,1vh,0.9rem); }
+#s1 h1 { font-size:clamp(2.2rem,6vw,5.8rem); }
+#s1 .year {
+    font-family:var(--f-disp); font-weight:900; line-height:0.88;
+    letter-spacing:-0.06em; color:rgba(0,0,0,0.026);
+    font-size:clamp(6rem,16vw,18rem);
+    position:absolute; bottom:0; left:calc(-1 * clamp(4px,0.8vw,10px));
+    user-select:none; pointer-events:none; overflow:hidden;
+}
+#s1 .right { gap:var(--gap); }
+#s1 .tags { display:flex; flex-wrap:wrap; gap:clamp(0.3rem,0.7vw,0.55rem); }
+#s1 .tag {
+    font-family:var(--f-disp); font-size:var(--sz-sm); font-weight:800;
+    letter-spacing:0.09em; text-transform:uppercase; padding:0.3em 0.8em;
+    border:1.5px solid var(--rule); color:var(--muted);
+}
+#s1 .tag.on { background:var(--violet); color:#fff; border-color:var(--violet); }
+
+/* ===========================================
+   PHASE INTRO SLIDES (5, 7, 13) — bold phase number
+   =========================================== */
+.phase-slide .left { justify-content:flex-end; gap:clamp(0.3rem,0.8vh,0.7rem); overflow:hidden; }
+.phase-slide .phase-num {
+    font-family:var(--f-disp); font-weight:900; text-transform:uppercase;
+    letter-spacing:-0.05em; line-height:0.85; color:var(--violet);
+    font-size:clamp(3.5rem,9vw,10rem); position:relative; z-index:2;
+}
+.phase-slide .phase-name {
+    font-family:var(--f-disp); font-weight:800; text-transform:uppercase;
+    letter-spacing:0.01em; color:var(--dark); font-size:var(--sz-h2);
+    position:relative; z-index:2;
+}
+.phase-slide .phase-sub {
+    font-family:var(--f-body); font-size:var(--sz-body);
+    color:var(--muted); font-style:italic; position:relative; z-index:2;
+}
+.phase-slide .ghost-bg {
+    position:absolute; bottom:calc(-1 * clamp(10px,3vh,30px));
+    left:calc(-1 * clamp(5px,1vw,12px));
+    font-family:var(--f-disp); font-weight:900; line-height:0.85;
+    letter-spacing:-0.06em; color:rgba(0,0,0,0.033);
+    font-size:clamp(6rem,17vw,20rem); user-select:none; pointer-events:none;
+}
+
+/* ===========================================
+   SLIDE 3 — STATEMENT (special)
+   =========================================== */
+#s3 .statement {
+    font-family:var(--f-disp); font-weight:900; text-transform:uppercase;
+    letter-spacing:-0.03em; line-height:0.97; color:var(--ink);
+    font-size:clamp(2rem,5.5vw,5rem);
+}
+
+/* ===========================================
+   SLIDE 15 — CLOSING QUOTE
+   =========================================== */
+#s15 .quote {
+    font-family:var(--f-disp); font-weight:900;
+    font-size:clamp(1.4rem,3.6vw,3.2rem);
+    line-height:1.15; letter-spacing:-0.025em;
+    color:var(--dark); max-width:min(70vw,780px);
+    text-align:center;
+}
+
+/* ===========================================
+   SLIDE 4 — OVERVIEW (horizontal bar variant for cards)
+   =========================================== */
+#s4 .card:nth-child(2) { border-top-color:rgba(109,40,217,0.5); }
+#s4 .card:nth-child(3) { border-top-color:rgba(109,40,217,0.22); }
+
+/* ===========================================
+   SLIDE 9 — PROBLEM AREAS (distinct top colors)
+   =========================================== */
+#s9 .card:nth-child(1) { border-top-color:#b91c1c; }
+#s9 .card:nth-child(2) { border-top-color:#b45309; }
+#s9 .card:nth-child(3) { border-top-color:#15803d; }
+
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="pb" aria-hidden="true"></div>
+<nav class="nav-dots" id="nd" aria-label="Slide navigation"></nav>
+
+<!-- ============================================================
+     1 — TITLE
+     ============================================================ -->
+<section class="slide" id="s1">
+    <div class="lbl">AI Dev Lifecycle</div>
+    <div class="ctr">Yew Hong Tat · 2026</div>
+
+    <div class="two-col" style="--cols:1.2fr 0.8fr">
+        <div class="col left" style="justify-content:flex-end; gap:clamp(0.4rem,1vh,0.9rem)">
+            <span class="eyebrow rv d1">Conference Talk</span>
+            <span class="vr rv d2" style="margin:clamp(0.3rem,0.8vh,0.7rem) 0"></span>
+            <h1 class="rv d2">A Minimal<br>AI Dev<br>Lifecycle<br><span class="accent">That Works</span></h1>
+            <div class="year" aria-hidden="true">2026</div>
+        </div>
+        <div class="col right-border right" style="gap:var(--gap)">
+            <div class="v-bar vbar" aria-hidden="true"></div>
+            <p class="body rv d2">From inconsistent chat sessions to a structured, autonomous loop — build the factory that builds the software, not just the software itself.</p>
+            <div class="tags rv d3">
+                <span class="tag on">Bootstrap</span>
+                <span class="tag on">Execute</span>
+                <span class="tag on">Ship</span>
+            </div>
+            <span class="hr rv d4" style="margin:var(--gap-sm) 0"></span>
+            <p class="body rv d4" style="font-size:var(--sz-sm); color:var(--muted)">Rubber Dux &nbsp;·&nbsp; March 2026 &nbsp;·&nbsp; 8 min read</p>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================
+     2 — THE LANDSCAPE HAS SHIFTED
+     ============================================================ -->
+<section class="slide" id="s2">
+    <div class="lbl">Context</div>
+    <div class="ctr">01 / 15</div>
+
+    <div class="two-col">
+        <div class="col">
+            <span class="eyebrow eyebrow-muted rv d1" style="margin-bottom:var(--gap-sm)">One year ago</span>
+            <h2 class="rv d2" style="margin-bottom:var(--gap-sm)">Prompt<br>Engineering</h2>
+            <span class="vr rv d2" style="margin-bottom:var(--gap)"></span>
+            <p class="body rv d3">Write a better prompt, get a better result. Craft clever instructions. Hope the model stays consistent between sessions.</p>
+        </div>
+        <div class="col right-border">
+            <div class="v-bar vbar" aria-hidden="true"></div>
+            <span class="eyebrow rv d2" style="margin-bottom:var(--gap-sm)">Today</span>
+            <h2 class="rv d3" style="margin-bottom:var(--gap-sm)">Context<br>Engineering</h2>
+            <span class="vr rv d3" style="margin-bottom:var(--gap)"></span>
+            <p class="body rv d4">Build the factory that builds the software. Structured feedback, persistent context, autonomous agents that know your architecture.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================
+     3 — THE CORE PROBLEM
+     ============================================================ -->
+<section class="slide" id="s3">
+    <div class="lbl">Problem</div>
+    <div class="ctr">02 / 15</div>
+
+    <div class="full-center" style="gap:var(--gap)">
+        <span class="eyebrow rv d1" style="margin-bottom:var(--gap)">The root cause</span>
+        <p class="statement rv d2">Chat alone gives<br><span class="accent">inconsistent code.</span></p>
+        <span class="vr rv d3" style="width:clamp(50px,8vw,100px); height:3px; margin:0 auto"></span>
+        <p class="body rv d4" style="max-width:min(52vw,500px); text-align:center">Without persistent, structured context, AI-generated features diverge in architecture, naming conventions, and design decisions across sessions.</p>
+    </div>
+</section>
+
+<!-- ============================================================
+     4 — THREE-PHASE OVERVIEW
+     ============================================================ -->
+<section class="slide" id="s4">
+    <div class="lbl">Overview</div>
+    <div class="ctr">03 / 15</div>
+
+    <div class="full">
+        <h2 class="rv d1" style="margin-bottom:var(--gap-sm)">A Three-Phase Lifecycle</h2>
+        <span class="hr2 rv d2" style="margin-bottom:var(--gap)"></span>
+        <div class="three-col rv-s d3" style="flex:1; align-content:start">
+            <div class="card">
+                <div class="cg">01</div>
+                <h3>Bootstrap</h3>
+                <p>Establish the single source of truth. Get the README right before a single line of code is written.</p>
+            </div>
+            <div class="card">
+                <div class="cg">02</div>
+                <h3>Execute</h3>
+                <p>Write PRDs, run the autonomous loop, review diffs, merge to main. Repeat per feature.</p>
+            </div>
+            <div class="card">
+                <div class="cg">03</div>
+                <h3>Ship</h3>
+                <p>Every merge to main is a potential release. Trunk-based development, CI/CD picks up automatically.</p>
+            </div>
+        </div>
+        <p class="body rv d5" style="margin-top:var(--gap); font-style:italic; color:var(--muted); font-size:var(--sz-sm)">"Vague prompts mean wrong results. Specification quality determines output quality at scale."</p>
+    </div>
+</section>
+
+<!-- ============================================================
+     5 — PHASE 01: BOOTSTRAP
+     ============================================================ -->
+<section class="slide phase-slide" id="s5">
+    <div class="lbl">Phase 01</div>
+    <div class="ctr">04 / 15</div>
+
+    <div class="two-col" style="--cols:0.82fr 1.18fr">
+        <div class="col left">
+            <div class="ghost-bg rv d1" aria-hidden="true">01</div>
+            <span class="phase-num rv d2">Boot<br>strap</span>
+            <span class="phase-name rv d3">Get Your<br>README Right</span>
+            <span class="phase-sub rv d4">Establish the single source of truth</span>
+        </div>
+        <div class="col right-border">
+            <div class="v-bar vbar" aria-hidden="true"></div>
+            <h3 class="rv d2" style="margin-bottom:var(--gap)">Why it matters</h3>
+            <ul class="dlist">
+                <li class="rv d3"><span class="d">—</span><span class="tx"><b>Clarity before code</b> the spec is the product until the first commit</span></li>
+                <li class="rv d4"><span class="d">—</span><span class="tx"><b>Plan Mode first</b> iterate architecture in Claude Code before writing any implementation</span></li>
+                <li class="rv d5"><span class="d">—</span><span class="tx"><b>README as contract</b> all future PRDs reference back to this document</span></li>
+                <li class="rv d6"><span class="d">—</span><span class="tx"><b>Vague = wrong</b> specificity here eliminates ambiguity at every stage that follows</span></li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================
+     6 — THE MINIMAL README
+     ============================================================ -->
+<section class="slide" id="s6">
+    <div class="lbl">Bootstrap</div>
+    <div class="ctr">05 / 15</div>
+
+    <div class="full">
+        <div class="rv d1" style="display:flex; align-items:center; gap:var(--gap-sm); flex-wrap:wrap; margin-bottom:var(--gap-sm)">
+            <h2>The Minimal README</h2>
+            <span class="chip">README.md</span>
+        </div>
+        <span class="hr2 rv d2" style="margin-bottom:var(--gap)"></span>
+        <ul class="dlist" style="flex:1">
+            <li class="rv d2"><span class="d">—</span><span class="tx"><b>Application name &amp; overview</b> one paragraph: what it is and who it's for</span></li>
+            <li class="rv d3"><span class="d">—</span><span class="tx"><b>Problem statement</b> the real pain being solved; calibrates every future decision</span></li>
+            <li class="rv d4"><span class="d">—</span><span class="tx"><b>Architecture</b> modular patterns, data isolation strategies, security layers</span></li>
+            <li class="rv d5"><span class="d">—</span><span class="tx"><b>Tech stack</b> frontend, backend, database, message brokers, workers, testing frameworks</span></li>
+            <li class="rv d6"><span class="d">—</span><span class="tx"><b>Key features</b> populated progressively during implementation — a living section</span></li>
+        </ul>
+    </div>
+</section>
+
+<!-- ============================================================
+     7 — PHASE 02: EXECUTE
+     ============================================================ -->
+<section class="slide phase-slide" id="s7">
+    <div class="lbl">Phase 02</div>
+    <div class="ctr">06 / 15</div>
+
+    <div class="two-col" style="--cols:0.82fr 1.18fr">
+        <div class="col left">
+            <div class="ghost-bg rv d1" aria-hidden="true">02</div>
+            <span class="phase-num rv d2">Exe<br>cute</span>
+            <span class="phase-name rv d3">PRD → Loop<br>→ Review → Merge</span>
+            <span class="phase-sub rv d4">The autonomous development cycle</span>
+        </div>
+        <div class="col right-border">
+            <div class="v-bar vbar" aria-hidden="true"></div>
+            <h3 class="rv d2" style="margin-bottom:var(--gap)">Four sub-steps</h3>
+            <ul class="slist">
+                <li class="rv d3"><span class="n">2a</span><span class="tx"><b>Write the PRD</b> User stories, acceptance criteria, NFRs, API contracts, data models</span></li>
+                <li class="rv d4"><span class="n">2b</span><span class="tx"><b>Run the Loop</b> <span class="chip" style="font-size:0.78em">./ralph.sh</span> scans specs, implements stories, commits, marks done</span></li>
+                <li class="rv d5"><span class="n">2c</span><span class="tx"><b>Review the PR</b> Verify acceptance criteria, assess architecture, evaluate tests</span></li>
+                <li class="rv d6"><span class="n">2d</span><span class="tx"><b>Merge to main</b> Short-lived branch, trunk-based development, update living PRD</span></li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================
+     8 — WRITING THE PRD
+     ============================================================ -->
+<section class="slide" id="s8">
+    <div class="lbl">Execute</div>
+    <div class="ctr">07 / 15</div>
+
+    <div class="full">
+        <div class="rv d1" style="display:flex; align-items:center; gap:var(--gap-sm); flex-wrap:wrap; margin-bottom:var(--gap-sm)">
+            <h2>Writing the PRD</h2>
+            <span class="chip">.spec/&lt;feature-name&gt;.md</span>
+        </div>
+        <span class="hr2 rv d2" style="margin-bottom:var(--gap)"></span>
+        <ul class="dlist" style="flex:1">
+            <li class="rv d2"><span class="d">—</span><span class="tx"><b>User stories</b> "As a [user], I want [action] so that [outcome]" · each has <span class="chip" style="font-size:0.78em">passes: false</span> until verified</span></li>
+            <li class="rv d3"><span class="d">—</span><span class="tx"><b>Non-functional requirements</b> measurable latency, throughput, error rate, security, and availability targets</span></li>
+            <li class="rv d4"><span class="d">—</span><span class="tx"><b>API contract</b> REST resource hierarchy &amp; verbs, or gRPC .proto definitions; pagination &amp; versioning strategy</span></li>
+            <li class="rv d5"><span class="d">—</span><span class="tx"><b>Data model</b> entities, indexes, soft-delete patterns, schema evolution, storage engine boundaries</span></li>
+            <li class="rv d6"><span class="d">—</span><span class="tx"><b>Out of scope</b> explicit exclusions prevent scope creep inside the autonomous loop</span></li>
+        </ul>
+    </div>
+</section>
+
+<!-- ============================================================
+     9 — THREE UNDER-SPECIFIED AREAS
+     ============================================================ -->
+<section class="slide" id="s9">
+    <div class="lbl">Execute</div>
+    <div class="ctr">08 / 15</div>
+
+    <div class="full">
+        <h2 class="rv d1" style="margin-bottom:var(--gap-sm)">Three Areas That Break Everything</h2>
+        <p class="body rv d2" style="margin-bottom:var(--gap); font-size:var(--sz-sm); color:var(--muted)">Consistently under-specified — the biggest source of downstream problems</p>
+        <span class="hr2 rv d2" style="margin-bottom:var(--gap)"></span>
+        <div class="three-col rv-s d3" style="flex:1; align-content:start">
+            <div class="card">
+                <div class="cg">NFR</div>
+                <h3>Non-Functional Requirements</h3>
+                <p>Measurable targets, not vague directives. "p99 under 200ms at 500 RPS" — not "make it fast."</p>
+            </div>
+            <div class="card">
+                <div class="cg">API</div>
+                <h3>API Contract Design</h3>
+                <p>Deliberate protocol choice with clear conventions. Lock in resource hierarchy and versioning before the loop runs.</p>
+            </div>
+            <div class="card">
+                <div class="cg">DB</div>
+                <h3>Data Modeling</h3>
+                <p>Schema decisions are hard to change mid-flight. Normalization, indexing, and soft-delete patterns decided upfront.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================
+     10 — THE AUTONOMOUS LOOP
+     ============================================================ -->
+<section class="slide" id="s10">
+    <div class="lbl">Execute</div>
+    <div class="ctr">09 / 15</div>
+
+    <div class="full">
+        <div class="rv d1" style="display:flex; align-items:center; gap:var(--gap-sm); flex-wrap:wrap; margin-bottom:var(--gap-sm)">
+            <h2>The Autonomous Loop</h2>
+            <span class="chip">./ralph.sh</span>
+        </div>
+        <span class="hr2 rv d2" style="margin-bottom:var(--gap)"></span>
+        <div class="loop-grid">
+            <div class="loop-step rv d2"><div class="sn">1</div><div class="sc"><b>Scan</b><span>Read <span class="chip" style="font-size:0.78em">.spec/</span> for all feature specs</span></div></div>
+            <div class="loop-step rv d3"><div class="sn">2</div><div class="sc"><b>Select</b><span>Pick highest-priority story with <span class="chip" style="font-size:0.78em">passes: false</span></span></div></div>
+            <div class="loop-step rv d4"><div class="sn">3</div><div class="sc"><b>Implement</b><span>Write code to satisfy the story's acceptance criteria</span></div></div>
+            <div class="loop-step rv d5"><div class="sn">4</div><div class="sc"><b>Quality check</b><span>Run lint, typecheck, and tests — no broken commits allowed</span></div></div>
+            <div class="loop-step rv d6"><div class="sn">5</div><div class="sc"><b>Commit</b><span>Conventional format: <span class="chip" style="font-size:0.78em">feat: [ID] - [Title]</span></span></div></div>
+            <div class="loop-step rv d7"><div class="sn">6</div><div class="sc"><b>Mark &amp; repeat</b><span>Flip to <span class="chip" style="font-size:0.78em">passes: true</span> · loop until <span class="chip" style="font-size:0.78em">COMPLETE</span></span></div></div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================
+     11 — LOOP GUARANTEES
+     ============================================================ -->
+<section class="slide" id="s11">
+    <div class="lbl">Execute</div>
+    <div class="ctr">10 / 15</div>
+
+    <div class="two-col" style="--cols:1.15fr 0.85fr">
+        <div class="col" style="gap:var(--gap-sm)">
+            <h2 class="rv d1" style="margin-bottom:var(--gap)">What the Loop<br>Guarantees</h2>
+            <ul class="dlist">
+                <li class="rv d2"><span class="d">—</span><span class="tx"><b>Resumable</b> reads <span class="chip" style="font-size:0.78em">.progress.txt</span> and continues from last checkpoint after any interruption</span></li>
+                <li class="rv d3"><span class="d">—</span><span class="tx"><b>No broken commits</b> lint + typecheck + tests must pass before <span class="chip" style="font-size:0.78em">git commit</span></span></li>
+                <li class="rv d4"><span class="d">—</span><span class="tx"><b>Codebase memory</b> consolidates reusable patterns into a <code style="font-size:0.85em">## Codebase Patterns</code> section each run</span></li>
+                <li class="rv d5"><span class="d">—</span><span class="tx"><b>Safe execution</b> runs inside Docker; <span class="chip" style="font-size:0.78em">--dangerously-skip-permissions</span> is contained</span></li>
+            </ul>
+        </div>
+        <div class="col right-border">
+            <div class="v-bar vbar" aria-hidden="true"></div>
+            <span class="eyebrow rv d2" style="margin-bottom:var(--gap-sm)">Important constraints</span>
+            <span class="vr rv d2" style="margin-bottom:var(--gap)"></span>
+            <p class="body rv d3" style="margin-bottom:var(--gap-sm)">Token limits are real. Long runs may hit rate limits — the progress log lets you resume without losing work.</p>
+            <p class="body rv d4" style="margin-bottom:var(--gap-sm)">"Done" must be explicit in acceptance criteria. The loop only marks <span class="chip" style="font-size:0.85em">passes: true</span> when criteria are verifiably met.</p>
+            <p class="body rv d5" style="font-style:italic; color:var(--muted); font-size:var(--sz-sm)">Definition of done is a human responsibility — not the loop's.</p>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================
+     12 — REVIEW & MERGE
+     ============================================================ -->
+<section class="slide" id="s12">
+    <div class="lbl">Execute</div>
+    <div class="ctr">11 / 15</div>
+
+    <div class="full">
+        <h2 class="rv d1" style="margin-bottom:var(--gap-sm)">Review &amp; Merge</h2>
+        <p class="body rv d2" style="margin-bottom:var(--gap); font-size:var(--sz-sm); color:var(--muted)">Your responsibilities as the human in the loop</p>
+        <span class="hr2 rv d2" style="margin-bottom:var(--gap)"></span>
+        <ul class="dlist" style="flex:1">
+            <li class="rv d2"><span class="d">—</span><span class="tx"><b>Verify acceptance criteria</b> does the PR actually do what the story asked?</span></li>
+            <li class="rv d3"><span class="d">—</span><span class="tx"><b>Assess architecture</b> are the choices consistent with the README and established patterns?</span></li>
+            <li class="rv d4"><span class="d">—</span><span class="tx"><b>Evaluate tests</b> not just pass rate — are they testing the right things meaningfully?</span></li>
+            <li class="rv d5"><span class="d">—</span><span class="tx"><b>Update the PRD</b> treat it as a living document reflecting all decisions made during review</span></li>
+            <li class="rv d6"><span class="d">—</span><span class="tx"><b>Merge to main</b> short-lived branches, trunk-based development, no long-running feature branches</span></li>
+        </ul>
+    </div>
+</section>
+
+<!-- ============================================================
+     13 — PHASE 03: SHIP
+     ============================================================ -->
+<section class="slide phase-slide" id="s13">
+    <div class="lbl">Phase 03</div>
+    <div class="ctr">12 / 15</div>
+
+    <div class="two-col" style="--cols:0.82fr 1.18fr">
+        <div class="col left">
+            <div class="ghost-bg rv d1" aria-hidden="true">03</div>
+            <span class="phase-num rv d2">Ship</span>
+            <span class="phase-name rv d3">Deploy</span>
+            <span class="phase-sub rv d4">Every merge to main is a potential release</span>
+        </div>
+        <div class="col right-border">
+            <div class="v-bar vbar" aria-hidden="true"></div>
+            <h3 class="rv d2" style="margin-bottom:var(--gap)">Trunk-based deployment</h3>
+            <ul class="dlist">
+                <li class="rv d3"><span class="d">—</span><span class="tx"><b>Main is the source of truth</b> no staging branches, no long-lived release branches</span></li>
+                <li class="rv d4"><span class="d">—</span><span class="tx"><b>CI/CD picks up every merge</b> automated pipeline, no manual deployment steps</span></li>
+                <li class="rv d5"><span class="d">—</span><span class="tx"><b>Fast iteration</b> the loop runs again on the next feature; continuous forward progress</span></li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================
+     14 — WHAT THIS SOLVES
+     ============================================================ -->
+<section class="slide" id="s14">
+    <div class="lbl">Outcomes</div>
+    <div class="ctr">13 / 15</div>
+
+    <div class="full">
+        <h2 class="rv d1" style="margin-bottom:var(--gap)">What This Solves</h2>
+        <span class="hr2 rv d2" style="margin-bottom:var(--gap)"></span>
+        <ul class="dlist" style="flex:1">
+            <li class="rv d2"><span class="d">—</span><span class="tx"><b>Eliminates inconsistent AI-generated code</b> persistent context keeps architecture and naming coherent across sessions</span></li>
+            <li class="rv d3"><span class="d">—</span><span class="tx"><b>Reduces specification overhead</b> minimal PRD structure balances rigor with speed; no boilerplate for the sake of it</span></li>
+            <li class="rv d4"><span class="d">—</span><span class="tx"><b>Creates resumable, contained loops</b> no work lost to rate limits or interruptions; progress always logged</span></li>
+            <li class="rv d5"><span class="d">—</span><span class="tx"><b>Enforces quality gates</b> no broken code reaches main; tests run before every single commit</span></li>
+            <li class="rv d6"><span class="d">—</span><span class="tx"><b>Keeps humans in control</b> review, architecture decisions, and "done" definitions remain human responsibilities</span></li>
+        </ul>
+    </div>
+</section>
+
+<!-- ============================================================
+     15 — CLOSING
+     ============================================================ -->
+<section class="slide" id="s15">
+    <div class="lbl">Fin</div>
+    <div class="ctr">15 / 15</div>
+
+    <div class="full-center" style="gap:var(--gap)">
+        <span class="eyebrow rv d1" style="margin-bottom:var(--gap)">Core philosophy</span>
+        <p class="quote rv d2">"The barrier to building has dropped.<br>The barrier to building <span class="accent">well</span> is now<br>about how clearly you can think —<br>and how <span class="accent">precisely</span> you can write it down."</p>
+        <span class="vr rv d4" style="width:clamp(50px,8vw,100px); height:3px; margin:0 auto"></span>
+        <p class="body rv d5" style="font-size:var(--sz-sm); color:var(--muted); margin-top:var(--gap-sm)">Yew Hong Tat &nbsp;·&nbsp; Rubber Dux &nbsp;·&nbsp; March 2026</p>
+    </div>
+</section>
+
+<script>
+/* ===========================================
+   PRESENTATION CONTROLLER
+   Navigation: arrows · space · pgup/dn · swipe · wheel · dots
+   =========================================== */
+class Deck {
+    constructor() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.n      = this.slides.length;
+        this.cur    = 0;
+        this.lastW  = 0;
+        this.ty = this.tx = 0;
+
+        this._observe();
+        this._dots();
+        this._keys();
+        this._touch();
+        this._wheel();
+        this._update(0);
+    }
+
+    _observe() {
+        const io = new IntersectionObserver(entries => {
+            entries.forEach(e => {
+                if (!e.isIntersecting) return;
+                e.target.classList.add('visible');
+                const i = this.slides.indexOf(e.target);
+                if (i >= 0) this._update(i);
+            });
+        }, { threshold: 0.5 });
+        this.slides.forEach(s => io.observe(s));
+    }
+
+    _dots() {
+        const nav = document.getElementById('nd');
+        this.slides.forEach((_, i) => {
+            const b = document.createElement('button');
+            b.className = 'nav-dot' + (i === 0 ? ' active' : '');
+            b.setAttribute('aria-label', `Slide ${i + 1}`);
+            b.onclick = () => this.go(i);
+            nav.appendChild(b);
+        });
+        this.dots = nav.querySelectorAll('.nav-dot');
+    }
+
+    _update(i) {
+        this.cur = i;
+        document.getElementById('pb').style.width =
+            (this.n > 1 ? i / (this.n - 1) * 100 : 100) + '%';
+        this.dots && this.dots.forEach((d, j) => d.classList.toggle('active', j === i));
+    }
+
+    go(i) {
+        i = Math.max(0, Math.min(i, this.n - 1));
+        this.slides[i].scrollIntoView({ behavior: 'smooth' });
+    }
+    next() { this.go(this.cur + 1); }
+    prev() { this.go(this.cur - 1); }
+
+    _keys() {
+        document.addEventListener('keydown', e => {
+            if (e.target.isContentEditable) return;
+            ({ ArrowDown:1, ArrowRight:1, ' ':1, PageDown:1 }[e.key]) && (e.preventDefault(), this.next());
+            ({ ArrowUp:1, ArrowLeft:1, PageUp:1 }[e.key])              && (e.preventDefault(), this.prev());
+            e.key === 'Home' && (e.preventDefault(), this.go(0));
+            e.key === 'End'  && (e.preventDefault(), this.go(this.n - 1));
+        });
+    }
+
+    _touch() {
+        document.addEventListener('touchstart', e => {
+            this.ty = e.touches[0].clientY;
+            this.tx = e.touches[0].clientX;
+        }, { passive: true });
+        document.addEventListener('touchend', e => {
+            const dy = this.ty - e.changedTouches[0].clientY;
+            const dx = this.tx - e.changedTouches[0].clientX;
+            if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 42)
+                dy > 0 ? this.next() : this.prev();
+        }, { passive: true });
+    }
+
+    _wheel() {
+        document.addEventListener('wheel', e => {
+            const now = Date.now();
+            if (now - this.lastW < 800) return;
+            this.lastW = now;
+            e.deltaY > 0 ? this.next() : this.prev();
+        }, { passive: true });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => new Deck());
+</script>
+</body>
+</html>
