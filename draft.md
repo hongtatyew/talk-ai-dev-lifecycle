@@ -51,13 +51,7 @@ The real cost is hidden upstream and downstream:
 Prompt Engineering → Context Engineering → Harness Engineering
 ```
 
-| Stage | What You Do |
-|---|---|
-| **Prompt Engineering** | Learn to write better prompts |
-| **Context Engineering** | Set up AGENTS.md, configure MCPs |
-| **Harness Engineering** | Build a system *around* the AI |
-
-> Most teams are still in stage one or two.  
+> Most teams are still in stage two.  
 
 ---
 # Slide 5 — Harness Engineering
@@ -78,22 +72,9 @@ A harness wraps around an AI agent to provide four key functions:
 # Slide 6 — The New Development Lifecycle
 ---
 
-# AI-Native Dev Lifecycle
+# AI-Native Development Lifecycle
 
-```
-Bootstrap → Design → Code → Review → Test → Ship
-                ↑___________________|
-                       (loop)
-```
-
-| Phase | Who Does It |
-|---|---|
-| **Bootstrap** | You + AI (once) |
-| **Design** | AI asks, you + your team answer, specs emerge |
-| **Code** | AI writes, guided by specs |
-| **Review** | AI checks first, human validates |
-| **Test** | AI handles unit + integration; you do E2E |
-| **Ship** | You |
+Refer to dev-lifecycle.drawio
 
 ---
 # Slide 7 — Bootstrap Phase
@@ -132,15 +113,15 @@ It then:
 # Code · Review · Test
 
 **Code**  
-The agent writes code *from the spec* — not from guesswork.
+- The agent writes code *from the spec* — not from guesswork. 
+- Unit tests, integration tests or E2E tests are handled automatically as part of the implementation.
 
 **Review**  
 AI reviews before humans do:  
 ✅ Code quality · ✅ Readability · ✅ Security · ✅ Bug detection
 
-**Test**  
-- AI handles: unit tests, integration tests  
-- You handle: end-to-end, real-world validation
+**Test** 
+You handle real-world validation
 
 ---
 # Slide 10 — Context Drift
